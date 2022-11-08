@@ -1,0 +1,5 @@
+[*.{js,jsx,ts,tsx,vue}]
+indent_style = space # 设置文件字符集utf-8
+indent_size = 2 # 缩进大小
+trim_trailing_whitespace = true # 去除行首的任意空白字符
+insert_final_newline = true # 始终在文件末尾插入一个新行
