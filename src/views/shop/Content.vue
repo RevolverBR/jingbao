@@ -1,53 +1,64 @@
 <template>
   <div class="content">
-    <div class="content__left">
+    <div class="content__category">
       <div
         :class="{
-          content__type: true,
-          'category__type--active': currentTab === item.tab,
+          content__category__item: true,
+          'content__category__item--active': currentTab === item.tab
         }"
-        v-for="item in categories"
-        :key="item.name"
-        @click="() => handleTabClick(item.tab)"
+        v-for="item in category"
+        :key="item.id"
+        @click="handleCategoryClick(item.tab)"
       >
         {{ item.name }}
       </div>
     </div>
-    <div class="content__right">
-      <div class="content__item" v-for="item in list" :key="item._id">
-        <img class="content__item__img" :src="item.imgUrl" />
-        <div class="content__item__details">
-          <h4 class="content__item__title">{{ item.name }}</h4>
-          <p class="content__item__sales">月售{{ item.sales }}件</p>
-          <div class="content__item__price">
-            <span class="content__item__curprice">&yen;{{ item.price }}</span>
-            <span class="content__item__originprice"
-              >&yen;{{ item.oldPrice }}</span
+
+    <div class="content__products">
+      <div
+        class="content__products__item"
+        v-for="item in contentList"
+        :key="item._id"
+      >
+        <img class="content__products__item__img" :src="item.imgUrl" alt="" />
+
+        <div class="content__products__item__particulars">
+          <h4 class="content__products__item__particulars__title">
+            {{ item.name }}
+          </h4>
+          <p class="content__products__item__particulars__sales">
+            月售{{ item.sales }}
+          </p>
+          <p class="content__products__item__particulars__price">
+            <span class="content__products__item__particulars__yen"
+              >售价&yen;{{ item.price }}</span
             >
-          </div>
-          <div class="content__item__number">
-            <span
-              class="content__item__minus"
-              @click="
-                () => {
-                  changeCartFun(shopId, item._id, item, -1, shopName);
-                }
-              "
-              >-</span
+            <span class="content__products__item__particulars__origin"
+              >原价&yen;{{ item.oldPrice }}</span
             >
-            <span class="content__item__text">
-              {{ getProductCartCount(shopId, item._id) }}
-            </span>
-            <span
-              class="content__item__plus"
-              @click="
-                () => {
-                  changeCartFun(shopId, item._id, item, 1, shopName);
-                }
-              "
-              >+</span
-            >
-          </div>
+          </p>
+        </div>
+
+        <div class="content__products__item__number">
+          <span
+            class="content__products__item__number__reduce"
+            @click="
+              () => {
+                setCart(shopId, item._id, item, -1, shopName)
+              }
+            "
+            >-</span
+          >
+          {{ getCount(shopId, item._id) }}
+          <span
+            class="content__products__item__number__increase"
+            @click="
+              () => {
+                setCart(shopId, item._id, item, 1, shopName)
+              }
+            "
+            >+</span
+          >
         </div>
       </div>
     </div>
@@ -55,195 +66,191 @@
 </template>
 
 <script>
-import { reactive, ref, toRefs } from "@vue/reactivity";
-import { watchEffect } from "@vue/runtime-core";
-import { useRoute } from "vue-router";
-import { get } from "../../utils/request";
-import { useChangeCartEffet } from "./commonCartEffect";
-import { useStore } from "vuex";
+import { reactive, toRefs, ref, toRef } from '@vue/reactivity'
+import { watchEffect } from '@vue/runtime-core'
+import { useRoute } from 'vue-router'
+import { getProductWithId } from '../../api'
+import { useCartEffect } from './cartCommonEffect'
+import { useStore } from 'vuex'
 
-const categories = [
-  { name: "全部商品", tab: "all" },
-  { name: "秒杀", tab: "seckill" },
-  { name: "新鲜水果", tab: "frult" },
-];
+const category = [
+  { id: 1, name: '全部商品', tab: 'all' },
+  { id: 2, name: '秒杀', tab: 'seckill' },
+  { id: 3, name: '新鲜水果', tab: 'fruit' }
+]
 
-//tab相关逻辑
+// 导航跳转
 const useTabEffect = () => {
-  const currentTab = ref(categories[0].tab);
-  const handleTabClick = (tab) => {
-    currentTab.value = tab;
-  };
-  return { currentTab, handleTabClick };
-};
+  const currentTab = ref(category[0].tab)
+  // 每次跳转后改变currentTab的值，让active可以变动
+  const handleCategoryClick = tab => {
+    currentTab.value = tab
+  }
+  return { handleCategoryClick, currentTab }
+}
 
-//列表内容相关逻辑
-const useCurrentListEffect = (currentTab, shopId) => {
-  const content = reactive({ list: [] });
+// 获取content内容
+const useContentListEffect = (currentTab) => {
+  const data = reactive({ contentList: [] })
+
+  const route = useRoute()
+  const shopId = route.params.id
 
   const getContentData = async () => {
-    const result = await get(`/api/shop/${shopId}/products`, {
-      tab: currentTab.value,
-    });
-    if (result?.errno === 0 && result?.data?.length) {
-      content.list = result.data;
+    const result = await getProductWithId(`/product/${shopId}`, {tab: currentTab.value})
+
+    if (result.code === 0 && result.data) {
+      data.contentList = result.data
     }
-  };
-
-  watchEffect(() => {
-    getContentData();
-  });
-
-  const { list } = toRefs(content);
-
-  return { list };
-};
-
-//我也不知道
-const useCartEffect = () => {
-  const store = useStore();
-  const { cartList, changeCart } = useChangeCartEffet();
-  const changeShopName = (shopId, shopName) => {
-    store.commit("changeShopName", { shopId, shopName });
-  };
-
-  const changeCartFun = (shopId, productId, item, num, shopName) => {
-    changeCart(shopId, productId, item, num);
-    changeShopName(shopId, shopName);
-  };
-
-  const getProductCartCount = (shopId, productId) => {
-    return cartList?.[shopId]?.productList?.[productId]?.count || 0
   }
-  return { cartList, changeShopName, changeCartFun, getProductCartCount };
-};
+
+  // 监听导航跳转改变展示内容
+  watchEffect(() => {
+    getContentData()
+  })
+
+  // const { contentList } = toRefs(data)
+  const { contentList } = toRefs(data)
+
+  return { contentList, shopId }
+}
 
 export default {
-  name: "Content",
+  name: 'Content',
+  data() {
+    return {
+      loading: false
+    }
+  },
   props: ["shopName"],
+  mounted () {
+    this.loading = true
+  },
   setup() {
-    const route = useRoute();
-    const shopId = route.params.id;
-    const { currentTab, handleTabClick } = useTabEffect();
-    const { list } = useCurrentListEffect(currentTab, shopId);
-    const { cartList, changeShopName, changeCartFun, getProductCartCount } = useCartEffect();
+    const store = useStore()
+    const { handleCategoryClick, currentTab } = useTabEffect()
+    const { contentList, shopId } = useContentListEffect(currentTab)
+
+    const { toCart, cartList, getCount } = useCartEffect()
+    const setShopName = (shopId, shopName) => {
+      store.commit('setShopName', {shopId, shopName})
+    }
+    const setCart = (shopId, productId, item, num, shopName) => {
+      toCart(shopId, productId, item, num),
+      setShopName(shopId, shopName)
+    }
 
     return {
-      categories,
-      shopId,
+      category,
+      handleCategoryClick,
       currentTab,
-      handleTabClick,
-      list,
+      contentList,
+      shopId,
+      setCart,
       cartList,
-      changeShopName,
-      changeCartFun,
-      getProductCartCount,
-    };
-  },
-};
+      getCount
+    }
+  }
+}
 </script>
 
 <style lang="scss" scoped>
-@import "../../style/viriables.scss";
-@import "../../style/mixins.scss";
+@import '../../style/mixin.scss';
+
 .content {
   display: flex;
   position: absolute;
   left: 0;
   right: 0;
-  top: 1.5rem;
+  top: 1.6rem;
   bottom: 0.5rem;
-  &__left {
+  &__category {
     overflow-y: scroll;
-    height: 100%;
     width: 0.76rem;
-    background: #f5f5f5;
-  }
-  &__type {
-    margin: 0.16rem 0 0.24rem;
-    font-size: 0.14rem;
-    color: #333333;
-    line-height: 0.16rem;
-    text-align: center;
-    &--active {
-      background-color: $content-bg-color;
+    height: 100%;
+    background-color: #f5f5f5;
+    &__item {
+      line-height: 0.4rem;
+      // padding: .05rem 0;
+      font-size: 0.14rem;
+      text-align: center;
+      color: #333;
+      &--active {
+        background-color: rgba($color: #bab9cc, $alpha: 1);
+      }
     }
   }
-  &__right {
+  &__products {
     overflow-y: scroll;
-    width: 80%;
-  }
-  &__item {
-    position: relative;
-    display: flex;
-    padding: 0.12rem 0;
-    margin: 0 0.16rem;
-    border-bottom: 0.01rem solid #f5f5f5;
-    &__img {
-      width: 0.68rem;
-      height: 0.68rem;
-      margin-right: 0.16rem;
-    }
-    &__details {
-      overflow: hidden;
-    }
-    &__title {
-      margin: 0;
-      line-height: 0.2rem;
-      font-size: 0.14rem;
-      color: #333333;
-      @include ellipsis;
-    }
-    &__sales {
-      margin: 0.06rem 0;
-      line-height: 0.16rem;
-      font-size: 0.12rem;
-      color: #333333;
-    }
-    &__curprice {
-      font-size: 0.14rem;
-      color: #e93b3b;
-      line-height: 0.2rem;
-      margin-right: 0.06rem;
-    }
-    &__originprice {
-      font-size: 0.1rem;
-      color: #999999;
-      line-height: 0.2rem;
-      text-decoration: line-through;
-    }
-    &__number {
-      position: absolute;
-      right: 0.04rem;
-      bottom: 0.12rem;
-    }
-    &__minus,
-    &__plus {
-      display: inline-block;
-      min-width: 0.2rem;
-      height: 0.2rem;
-      font-size: 0.2rem;
-      line-height: 0.2rem;
-      text-align: center;
-      border-radius: 50%;
-      border: 0.01rem solid #666666;
-      color: #666666;
-    }
-    &__minus {
-      margin-right: 0.1rem;
-    }
-    &__plus {
-      margin-left: 0.1rem;
-      background-color: #0091ff;
-      color: white;
-    }
-    &__text {
-      display: inline-block;
-      height: 100%;
-      width: 0.16rem;
-      font-size: 0.12rem;
-      text-align: center;
-      color: $content-font-color;
+    flex: 1;
+    // background-color: #7d87e4;
+    &__item {
+      position: relative;
+      display: flex;
+      padding: 0.12rem 0;
+      margin: 0 0.16rem;
+      border-bottom: 0.01rem solid #f1f1f1;
+      &__img {
+        width: 0.68rem;
+        height: 0.68rem;
+        margin-right: 0.16rem;
+      }
+      &__particulars {
+        overflow: hidden;
+        &__title {
+          margin: 0;
+          line-height: 0.2rem;
+          font-size: 0.14rem;
+          color: #333;
+          @include ellipsis;
+        }
+        &__sales {
+          margin: 0.06rem 0;
+          font-size: 0.12rem;
+          line-height: 0.16rem;
+          color: #333;
+        }
+        &__price {
+          margin: 0;
+          line-height: 0.2rem;
+          font-size: 0.14rem;
+          color: #e93b3b;
+        }
+        &__yen {
+          font-size: 0.12rem;
+        }
+        &__origin {
+          margin-left: 0.06rem;
+          line-height: 0.2rem;
+          font-size: 0.12rem;
+          color: #999;
+          text-decoration: line-through;
+        }
+      }
+      &__number {
+        position: absolute;
+        bottom: 0.12rem;
+        right: 0rem;
+        &__reduce,
+        &__increase {
+          display: inline-block;
+          width: 0.2rem;
+          height: 0.2rem;
+          line-height: 0.16rem;
+          border-radius: 50%;
+          font-size: 0.2rem;
+          text-align: center;
+        }
+        &__reduce {
+          border: 0.01rem solid #666;
+          margin-right: 0.1rem;
+        }
+        &__increase {
+          background-color: #0091ff;
+          color: #fff;
+          margin-left: 0.1rem;
+        }
+      }
     }
   }
 }

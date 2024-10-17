@@ -1,67 +1,69 @@
 <template>
-  <div class="docker">
-    <div
-      v-for="(item, index) in dockerList"
-      :key="index"
-      :class="{ docker__item: true, 'docker__item--active': index === currentIndex }"
-    >
-      <router-link :to="item.to">
-        <div class="iconfont" v-html="item.icon" />
-        <div class="docker__title">{{ item.text }}</div>
-      </router-link>
+    <div class="docker">
+        <!-- <div
+            v-for="(item, index) in dockerList"
+            :key="item.icon"
+            :class="{ 'docker__item': true, 'docker__item--active': index === 0 }"
+        > -->
+        <router-link
+            v-for="item in dockerList"
+            :key="item.icon"
+            class="docker__item"
+            :to="`/${item.url}`"
+        >
+            <div class="iconfont" v-html="item.icon" />
+            <div class="docker__title">{{item.text}}</div>
+        </router-link>
     </div>
-  </div>
 </template>
 
 <script>
+import { dockerList } from './homedata';
+// :class="{ 'docker__item': true, 'docker__item--active': index === 0 }"
 export default {
-  name: "Docker",
-  props: ['currentIndex'],
-  setup() {
-    const dockerList = [
-      { icon: "&#xe607;", text: "首页", to: { name: "Home" } },
-      { icon: "&#xe600;", text: "购物车", to: { name: "Home" } },
-      { icon: "&#xe61e;", text: "订单", to: { name: "OrderList" } },
-      { icon: "&#xe6a4;", text: "我的", to: { name: "My" } },
-    ];
-    return { dockerList };
-  },
+    name: "Docker",
+    setup() {
+
+        return { dockerList };
+    }
 };
 </script>
 
 <style lang="scss" scoped>
-@import "../../style/viriables.scss";
-@import "../../style/mixins.scss";
 .docker {
-  box-sizing: border-box;
-  position: absolute;
-  padding: 0 0.18rem;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  width: 100%;
-  // height: .52rem;
-  border-top: 0.01rem solid $content-bg-color;
-  color: $content-font-color;
-  &__item {
-    flex: 1;
-    text-align: center;
-    .iconfont {
-      margin: 0.07rem 0 0.02rem 0;
-      font-size: 0.18rem;
+    display: flex;
+    position: absolute;
+    box-sizing: border-box;
+    padding: 0 0.18rem;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 0.49rem;
+    border-top: 0.01rem solid #f1f1f1;
+    a {
+        text-decoration: none;
     }
-    &--active {
-      a {
-        color: #1fa4fc;
-      }
+    // background-color: green;
+    &__item {
+        flex: 1;
+        text-align: center;
+        color: #c22222;
+        .iconfont {
+            margin: 0.07rem;
+            font-size: 0.18rem;
+        }
+        // &--active {
+        //     color: #1fa4fc;
+        // }
+        &.router-link-active {
+            color: #10c8e0;
+        }
     }
-  }
-  &__title {
-    // 移动端最小12px
-    font-size: 0.2rem;
-    transform: scale(0.5, 0.5);
-    transform-origin: center top;
-  }
+    &__title {
+        font-size: 0.2rem;
+        transform: scale(0.5, 0.5);
+        transform-origin: center top;
+    }
 }
 </style>

@@ -22,8 +22,8 @@
         autocomplete="new-password"
       />
     </div>
-    <div class="wrapper__login__button" @click="handleLogin">登录</div>
-    <div class="wrapper__login__register" @click="handleToRegister">
+    <div class="wrapper__login-button" @click="handleLogin">登录</div>
+    <div class="wrapper__login-register" @click="handleToRegister">
       立即注册
     </div>
     <Toast v-if="showToast" :message="toastMessage" />
@@ -32,116 +32,142 @@
 
 <script>
 import { useRouter } from "vue-router";
-import { reactive, toRefs } from "vue";
-import { post } from "../../utils/request";
-import Toast, { useToastEffect } from "../../components/Toast";
+import { reactive, toRefs } from "@vue/reactivity";
+import { login } from "../../api/index.js";
 
-const useLoginEffect = (showToastFun) => {
-  const router = useRouter();
-  const data = reactive({ username: "", password: "" });
+import { post } from "../../utils/request.js";
+import Toast, { useToastEffect } from "../../components/Toast.vue";
 
-  const handleLogin = async () => {
-    const { username, password } = data;
-    if (username.trim() !== "" && password.trim() !== "") {
-      try {
-        const result = await post("/api/user/login", {
-          username: data.username,
-          password: data.password,
-        });
-        if (result?.errno === 0) {
-          localStorage.isLogin = true;
-          router.push({ name: "Home" });
+// const data = reactive({
+//         username: 'user1',
+//         password: 'password1'
+//     });
+const useHandleEffect = (showToastFun) => {
+    const router = useRouter();
+
+    const data = reactive({
+        username: '',
+        password: ''
+    });
+
+    //登录
+    const handleLogin = async () => {
+        const params = { username: username.value, password: password.value }
+        const res = await login('/auth', params)
+        if (res.code === 0 && res.data) {
+            showToastFun('登录成功')
+            localStorage.setItem('token', res.data.token)
+            router.push({ name: "Home" });
         } else {
-          showToastFun("登录失败");
+            showToastFun('登录失败')
         }
-      } catch (e) {
-        showToastFun("请求失败");
-      }
-    } else {
-      showToastFun("请输入正确的用户名和密码");
-    }
-  };
 
-  const { username, password } = toRefs(data);
-  return { username, password, handleLogin };
-};
+        // await post('/auth', params)
+        //     .then((res) => {
+        //         if (res.code === 0) {
+        //             showToastFun('登录成功')
+        //             localStorage.setItem('token', res.data.token)
+        //             router.push({ name: "Home" });
+        //         } else {
+        //             showToastFun('登录失败')
+        //         }
+        //     })
 
-const useRegisterEffect = () => {
-  const router = useRouter();
-  const handleToRegister = () => {
-    router.push({ name: "Register" });
-  };
-  return { handleToRegister };
+        // try {
+        //     const result = await post("/api/user/login", {
+        //         username: data.username,
+        //         password: data.password,
+        //     });
+        //     if (result?.errno === 0) {
+        //         localStorage.isLogin = true;
+        //         router.push({ name: "Home" });
+        //     } else {
+        //         // alert("fail");
+        //         showToastFun("登录失败");
+        //         console.log("api");
+        //     }
+        // } catch (e) {
+        //     // alert("请求失败");
+        //     showToastFun("请求失败");
+        // }
+    };
+
+    //注册
+    const handleToRegister = () => {
+        router.push({ name: "Register" });
+    };
+
+    const { username, password } = toRefs(data);
+
+    return { handleLogin, handleToRegister, username, password };
 };
 
 export default {
-  name: "Login",
-  components: { Toast },
-  setup() {
-    const { showToast, toastMessage, showToastFun } = useToastEffect();
-    const { username, password, handleLogin } = useLoginEffect(showToastFun);
-    const { handleToRegister } = useRegisterEffect();
-    return {
-      handleLogin,
-      handleToRegister,
-      showToast,
-      toastMessage,
-      username,
-      password,
-    };
-  },
+    name: "Login",
+    components: { Toast },
+    setup() {
+        const { showToast, toastMessage, showToastFun } = useToastEffect();
+        const { handleLogin, handleToRegister, username, password } =
+            useHandleEffect(showToastFun);
+
+        return {
+            handleLogin,
+            handleToRegister,
+            showToast,
+            toastMessage,
+            username,
+            password,
+        };
+    },
 };
 </script>
 
 <style lang="scss" scoped>
-@import "../../style/viriables.scss";
-
 .wrapper {
-  position: absolute;
-  top: 45%;
-  left: 0;
-  right: 0;
-  transform: translateY(-50%);
-  // background: #f9f9f9;
-  &__img {
-    display: block;
-    width: 0.66rem;
-    height: 0.66rem;
-    margin: 0 auto 0.4rem auto;
-  }
-  &__input {
-    height: 0.48rem;
-    margin: 0 0.4rem 0.16rem 0.4rem;
-    padding: 0 .16rem;
-    background: #F9F9F9;
-    border: .01rem solid rgba(0, 0, 0, 0.1);
-    border-radius: .06rem;
-    &__content {
-      line-height: 0.48rem;
-      border: none;
-      outline: none;
-      width: 100%;
-      font-size: 0.16rem;
-      color: $content-login-color1;
-      &::placeholder {
-        color: $content-login-color1;
-      }
+    position: absolute;
+    top: 50%;
+    right: 0;
+    left: 0;
+    transform: translateY(-50%);
+    &__img {
+        display: block;
+        margin: 0 auto .4rem auto;
+        height: 0.66rem;
+        width: 0.66rem;
     }
-  }
-  &__login__button {
-    margin: 0.32rem 0.4rem 0.16rem 0.4rem;
-    line-height: 0.48rem;
-    background: #0091ff;
-    box-shadow: 0 0.04rem 0.08rem 0 rgba(0, 145, 255, 0.32);
-    border-radius: 0.04rem;
-    text-align: center;
-    font-size: 0.16rem;
-    color: #fff;
-  }
-  &__login__register {
-    text-align: center;
-    font-size: .14rem;
-    color: $content-login-color1;
-  }
+    &__input {
+        height: 0.48rem;
+        margin: 0 0.4rem 0.16rem 0.4rem;
+        padding: 0 0.16rem;
+        background: #f9f9f9;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 6px;
+        &__content {
+            width: 100%;
+            border: none;
+            outline: none;
+            line-height: 0.48rem;
+            background: none;
+            font-size: 0.16rem;
+            &::placeholder {
+                color: rgba(0, 0, 0, 0.5);
+            }
+        }
+    }
+    &__login-button {
+        margin: 0.32rem 0.4rem 0.16rem 0.4rem;
+        background: #0091ff;
+        box-shadow: 0 0.04rem 0.08rem 0 rbga(0, 145, 255, 0.32);
+        border-radius: 4px;
+        color: #fff;
+        line-height: 0.48rem;
+        font-size: 0.16rem;
+        text-align: center;
+    }
+    &__login-register {
+        text-align: center;
+        font-size: 0.14rem;
+        color: rgba(0, 0, 0, 0.5);
+    }
 }
 </style>

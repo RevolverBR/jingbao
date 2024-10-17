@@ -1,49 +1,61 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+// import Home from '../views/home/Home.vue'
+// import Login from '../views/login/Login.vue'
+// import Register from '../views/register/Register.vue'
+// import Shop from '../views/shop/Shop.vue'
 
 const routes = [
   {
     path: '/',
     name: 'Home',
-    component: () => import(/* webpackChunkName: "home" */ '../views/home/Home')
-  },
-  {
-    path: '/my',
-    name: 'My',
-    component: () => import(/* webpackChunkName: "orderList" */ '../views/my/My')
+    component: () =>
+      import(/* webpackChunkName: "Home" */ '../views/home/Home.vue')
   },
   {
     path: '/shop/:id',
     name: 'Shop',
-    component: () => import(/* webpackChunkName: "shop" */ '../views/shop/Shop')
+    component: () =>
+      import(/* webpackChunkName: "Shop" */ '../views/shop/Shop.vue')
   },
   {
-    path: '/orderConfirmation/:id',
-    name: 'OrderConfirmation',
-    component: () => import(/* webpackChunkName: "orderConfirmation" */ '../views/orderConfirmation/OrderConfirmation')
+    path: '/my',
+    name: 'My',
+    component: () =>
+      import(/* webpackChunkName: "Home" */ '../views/my/MyPlace.vue')
   },
   {
-    path: '/orderList',
-    name: 'OrderList',
-    component: () => import(/* webpackChunkName: "orderList" */ '../views/orderList/OrderList')
+    path: '/shopCart/:id',
+    name: 'ShopCart',
+    component: () =>
+      import(/* webpackChunkName: "Home" */ '../views/shopCart/ShopCartMain.vue')
+  },
+  {
+    path: '/order',
+    name: 'Order',
+    component: () =>
+      import(/* webpackChunkName: "Home" */ '../views/order/OrderList.vue')
   },
   {
     path: '/login',
     name: 'Login',
-    component: () => import(/* webpackChunkName: "login" */ '../views/login/Login'),
-    // 已经登录状态不再继续访问登录页面
+    component: () =>
+      import(/* webpackChunkName: "Login" */ '../views/login/Login.vue'),
     beforeEnter(to, from, next) {
-      const { isLogin } = localStorage;
-      isLogin ? next({ name: 'Home' }) : next();
+      // const { token } = localStorage;
+      // token ? next({ name: 'Home' }) : next();
+      next()
     }
   },
   {
     path: '/register',
     name: 'Register',
-    component: () => import(/* webpackChunkName: "register" */ '../views/register/Register'),
-    // 已经登录状态不再继续访问注册页面
+    component: () =>
+      import(
+        /* webpackChunkName: "Register" */ '../views/register/Register.vue'
+      ),
     beforeEnter(to, from, next) {
-      const { isLogin } = localStorage;
-      isLogin ? next({ name: 'Home' }) : next();
+      const { token } = localStorage
+      token ? next({ name: 'Home' }) : next()
     }
   }
 ]
@@ -53,12 +65,12 @@ const router = createRouter({
   routes
 })
 
-// 未登录前先登录才能访问其他页面
-router.beforeEach(
-  (to, from, next) => {
-    const isLogin = localStorage.isLogin;
-    (!isLogin && to.name !== 'Login' && to.name !== 'Register') ? next({ name: 'Login' }) : next();
-  }
-)
+// 登录验证
+router.beforeEach((to, from, next) => {
+  const { token } = localStorage
+  !token && to.name !== 'Login' && to.name !== 'Register'
+    ? next({ name: 'Login' })
+    : next()
+})
 
 export default router

@@ -1,381 +1,322 @@
 <template>
-  <div
-    class="mask"
-    v-if="showCart && calcutions.count > 0"
-    @click="showCartFun"
-  ></div>
+  <div class="mask" v-if="showCart && cartComputed.total > 0" @click="handleShowCart" />
   <div class="cart">
-    <div class="content__right" v-if="showCart && calcutions.count > 0">
-      <div class="content__header">
+    <div class="cartdetails" v-show="showCart && cartComputed.total > 0">
+      <div class="cartdetails__top">
+        <!-- <div class="cartdetails__top__icon iconfont" :style="allChecked ? ">&#xe616;</div> -->
         <div
-          class="content__header__chooseall"
-          @click="() => allCheckChange(shopId)"
+          @click="selectcartall(shopId)"
+          :class="{
+          iconfont: true,
+            'cartdetails__top__iconall': cartComputed.allChecked,
+            'cartdetails__top__iconnone': !cartComputed.allChecked
+          }"
         >
-          <span
-            class="content__header__chooseall__icon iconfont"
-            v-html="calcutions.allChecked ? '&#xe63a;' : '&#xe667;'"
-          ></span>
-          全选
+          &#xe616;
         </div>
-        <div class="content__header__clearcart">
-          <span
-            @click="() => cartClear(shopId)"
-            class="content__header__clearcart__text"
-          >
-            清空购物车
-          </span>
+        <div class="cartdetails__top__selectall">全选</div>
+        <div class="cartdetails__top__clear" @click="clearCart(shopId)">
+          清空购物车
         </div>
       </div>
-      <div class="content__item" v-for="item in productList" :key="item._id">
-        <div
-          class="content__item__checked iconfont"
-          v-html="item.check ? '&#xe63a;' : '&#xe667;'"
-          @click="() => changeCartItemCheck(shopId, item._id)"
-        />
-        <img class="content__item__img" :src="item.imgUrl" />
-        <div class="content__item__details">
-          <h4 class="content__item__title">{{ item.name }}</h4>
-          <div class="content__item__price">
-            <span class="content__item__curprice">&yen;{{ item.price }}</span>
-            <span class="content__item__originprice"
-              >&yen;{{ item.oldPrice }}</span
-            >
+
+      <template v-for="item in cartComputed.productList" :key="item._id">
+        <div class="cartdetails__item">
+          <div
+            class="cartdetails__item__yesicon iconfont"
+            v-if="item.check"
+            @click="changeCheck(shopId, item._id)"
+          >
+            &#xe616;
           </div>
-          <div class="content__item__number">
+          <div
+            class="cartdetails__item__noicon iconfont"
+            v-if="!item.check"
+            @click="changeCheck(shopId, item._id)"
+          >
+            &#xe616;
+          </div>
+
+          <img class="cartdetails__item__img" :src="item.imgUrl" alt="" />
+          <div class="cartdetails__item__particulars">
+            <h4 class="cartdetails__item__particulars__title">
+              {{ item.name }}
+            </h4>
+            <p class="cartdetails__item__particulars__price">
+              <span class="cartdetails__item__particulars__yen"
+                >总计&yen;{{ item.price * item.count }}</span
+              >
+            </p>
+          </div>
+          <div class="cartdetails__item__number">
             <span
-              class="content__item__minus"
+              class="cartdetails__item__number__reduce"
               @click="
-                () => {
-                  changeCart(shopId, item._id, item, -1);
-                }
-              "
+                            () => {
+                                toCart(shopId, item._id, item, -1);
+                            }
+                        "
               >-</span
             >
-            <span class="content__item__text">
-              {{ item.count || 0 }}
-            </span>
+            {{ getCount(shopId, item._id) }}
             <span
-              class="content__item__plus"
+              class="cartdetails__item__number__increase"
               @click="
-                () => {
-                  changeCart(shopId, item._id, item, 1);
-                }
-              "
+                            () => {
+                                toCart(shopId, item._id, item, 1);
+                            }
+                        "
               >+</span
             >
           </div>
         </div>
-      </div>
+      </template>
     </div>
     <div class="check">
-      <div class="check__icon" @click="showCartFun">
+      <div class="check__icon" @click="handleShowCart">
         <img
-          src="http://www.dell-lee.com/imgs/vue3/basket.png"
           class="check__icon__img"
+          src="http://www.dell-lee.com/imgs/vue3/basket.png"
+          alt=""
         />
-        <div class="check__icon__tag">{{ calcutions.count }}</div>
+        <div class="check__icon__tag">{{ cartComputed.total }}</div>
       </div>
       <div class="check__info">
-        <span class="check__info__text">总计：</span>
-        <span class="check__info__price">&yen; {{ calcutions.price }}</span>
+        总计：
+        <span class="check__info__price">&yen;{{ cartComputed.totalPrice }}</span>
       </div>
-      <router-link :to="{ path: `/orderConfirmation/${shopId}` }">
-        <div class="check__btn">去结算</div>
-      </router-link>
+      <div class="check__btn">
+        <router-link :to="`/ShopCart/${shopId}`">
+          去结算
+        </router-link>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import { computed, ref } from "vue";
-import { useStore } from "vuex";
-import { useRoute } from "vue-router";
-import { useChangeCartEffet } from "./commonCartEffect";
-
-//购物车逻辑
-const useCartEffect = (shopCart, cartList) => {
-  const store = useStore();
-  const route = useRoute();
-  const shopId = route.params.id;
-
-  // //非全选时使全选按钮关闭状态
-  // const allChecked = computed(() => {
-  //   const productList = cartList[shopId]?.productList;
-  //   let result = true;
-  //   if (productList) {
-  //     for (let i in productList) {
-  //       const product = productList[i];
-  //       if (product.count > 0 && !product.check) {
-  //         result = false;
-  //       }
-  //     }
-  //   }
-  //   return result;
-  // });
-
-  //添加到购物车的内容
-  const productList = computed(() => {
-    const productList = cartList[shopId]?.productList || [];
-    return productList;
-  });
-
-  //购物车内容选中状态切换按钮事件
-  const changeCartItemCheck = (shopId, productId) => {
-    store.commit("changeCartItemCheck", {
-      shopId,
-      productId,
-    });
-    return { changeCartItemCheck };
-  };
-
-  //清空购物车
-  const cartClear = (shopId) => {
-    store.commit("cartClear", {
-      shopId,
-    });
-    shopCart.value = false;
-  };
-
-  //全选按钮切换操作
-  const allCheckChange = (shopId) => {
-    store.commit("allCheckChange", { shopId });
-  };
-
-  return {
-    productList,
-    shopId,
-    changeCartItemCheck,
-    cartClear,
-    allCheckChange,
-  };
-};
-
-//购物车展示与否
-const useShowCartEffect = () => {
-  const showCart = ref(false);
-  const showCartFun = () => {
-    showCart.value = !showCart.value;
-  };
-  return { showCart, showCartFun };
-};
+import { ref } from 'vue';
+import { useStore } from 'vuex';
+import { useCartEffect, useCartCommonEffect } from './cartCommonEffect';
 
 export default {
-  name: "Cart",
-  setup() {
-    const { showCart, showCartFun } = useShowCartEffect();
-    const { cartList, changeCart, calcutions } = useChangeCartEffet();
-    const {
-      productList,
-      shopId,
-      changeCartItemCheck,
-      cartClear,
-      allCheckChange,
-    } = useCartEffect(showCart, cartList);
+    name: "Cart",
+    setup() {
+        let showCart = ref(false)
+        const store = useStore()
 
-    return {
-      productList,
-      changeCart,
-      calcutions,
-      shopId,
-      changeCartItemCheck,
-      cartClear,
-      allCheckChange,
-      showCart,
-      showCartFun,
-    };
-  },
+        const handleShowCart = () => {
+            showCart.value = !showCart.value
+        }
+
+        const clearCart = (shopId) => {
+            store.commit('clearCart', {
+                shopId
+            })
+        }
+
+        const { cartComputed, cartList, shopId, changeCheck, selectcartall, getCount, toCart } = useCartEffect();
+
+        return {
+          cartComputed, cartList, shopId, showCart, toCart, changeCheck, clearCart, selectcartall, handleShowCart, getCount
+        };
+    },
 };
 </script>
 
 <style lang="scss" scoped>
-@import "../../style/mixins.scss";
-@import "../../style/viriables.scss";
+@import "../../style/mixin.scss";
+
+a {
+  text-decoration: none;
+  color: #fff;
+}
+
 .mask {
   position: fixed;
   top: 0;
+  right: 0;
   left: 0;
   bottom: 0;
-  right: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 1;
+  background: rgba($color: #2a2a33, $alpha: 0.5);
+  z-index: 10;
 }
+
 .cart {
-  z-index: 2;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    // height: 0.49rem;
+    background-color: #fff;
+    z-index: 20;
 }
-.content {
-  display: flex;
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 1.5rem;
-  bottom: 0.5rem;
-  background-color: #fff;
-  &__header {
-    display: flex;
-    line-height: 0.52rem;
-    border: 0.01rem solid #fff;
-    font-size: 0.14rem;
-    color: #333333;
-    &__chooseall {
-      width: 0.64rem;
-      margin-left: 0.16rem;
-      text-align: left;
-      &__icon {
-        color: #0091ff;
-        font-size: 0.23rem;
-        vertical-align: top;
-        margin-right: 0.06rem;
-      }
-    }
-    &__clearcart {
-      flex: 1;
-      text-align: right;
-      &__text {
-        display: inline-block;
-        width: 1.2rem;
-        height: 100%;
-        text-align: center;
-      }
-    }
-  }
-  &__right {
+
+.cartdetails {
     overflow-y: scroll;
-    width: 100%;
-  }
-  &__item {
-    position: relative;
-    display: flex;
-    padding: 0.12rem 0;
-    margin: 0 0.16rem;
-    border-bottom: 0.01rem solid #f5f5f5;
-    &__checked {
-      line-height: 0.5rem;
-      margin-right: 0.15rem;
-      width: 0.2rem;
-      height: 0.2rem;
-      color: #0091ff;
-      font-size: 0.23rem;
-    }
-    &__img {
-      width: 0.46rem;
-      height: 0.46rem;
-      margin-right: 0.16rem;
-    }
-    &__details {
-      overflow: hidden;
-    }
-    &__title {
-      margin: 0;
-      line-height: 0.2rem;
-      font-size: 0.14rem;
-      color: #333333;
-      @include ellipsis;
-    }
-    &__curprice {
-      display: inline-block;
-      margin: 0.06rem 0.06rem 0 0;
-      font-size: 0.14rem;
-      color: #e93b3b;
-      line-height: 0.2rem;
-    }
-    &__originprice {
-      font-size: 0.1rem;
-      color: #999999;
-      line-height: 0.2rem;
-      text-decoration: line-through;
-    }
-    &__number {
-      position: absolute;
-      right: 0.04rem;
-      bottom: 0.2rem;
-    }
-    &__minus,
-    &__plus {
-      display: inline-block;
-      width: 0.2rem;
-      height: 0.2rem;
-      font-size: 0.2rem;
-      line-height: 0.2rem;
-      text-align: center;
-      border-radius: 50%;
-      border: 0.01rem solid #666666;
-      color: #666666;
-    }
-    &__minus {
-      margin-right: 0.1rem;
-    }
-    &__plus {
-      margin-left: 0.1rem;
-      background-color: #0091ff;
-      color: white;
-    }
-    &__text {
-      display: inline-block;
-      height: 100%;
-      width: 0.16rem;
-      font-size: 0.12rem;
-      text-align: center;
-      color: $content-font-color;
-    }
-  }
-}
-//cart
-.cart {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #ffffff;
-}
-.check {
-  display: flex;
-  height: 0.5rem;
-  border-top: 0.01rem solid #f1f1f1;
-  line-height: 0.5rem;
-  &__icon {
-    width: 0.84rem;
-    position: relative;
-    &__img {
-      display: block;
-      margin: 0.12rem auto;
-      width: 0.28rem;
-      height: 0.26rem;
-    }
-    &__tag {
-      position: absolute;
-      min-width: 0.2rem;
-      max-width: 0.6rem;
-      height: 0.2rem;
-      padding: 0 0.025rem;
-      line-height: 0.2rem;
-      text-align: center;
-      background-color: #e93b3b;
-      border-radius: 0.1rem;
-      font-size: 0.12rem;
-      left: 0.45rem;
-      top: 0.04rem;
-      transform: scale(0.5);
-      transform-origin: left center;
-      color: #fff;
-    }
-  }
-  &__info {
     flex: 1;
-    &__text {
-      color: #333;
-      font-size: 0.12rem;
+    background-color: #deeff1;
+    &__top {
+        display: flex;
+        height: .52rem;
+        border-bottom: .01rem solid #F1F1F1;
+        align-items: center;
+        &__iconall {
+            width: .3rem;
+            color: rgb(21, 150, 9);
+            font-size: .2rem;
+            margin-left: .16rem;
+        }
+        &__iconnone {
+            width: .3rem;
+            color: rgb(99, 148, 144);
+            font-size: .2rem;
+            margin-left: .16rem;
+        }
+        &__selectall {
+            // flex: 1;
+            width: 0.8rem;
+            text-align: left;
+            color: #333;
+            font-size: .16rem;
+        }
+        &__clear {
+            flex: 1;
+            text-align: right;
+            color: #333;
+            font-size: .16rem;
+            margin-right: .2rem;
+            margin-left: 1.6rem;
+        }
     }
-    &__price {
-      color: #e93b3b;
-      font-size: 0.18rem;
+    &__item {
+        // position: relative;
+        display: flex;
+        padding: 0.12rem 0;
+        margin: 0 0.16rem;
+        border-bottom: 0.01rem solid #8df5f0;
+        &__yesicon {
+            position: relative;
+            margin-top: .1rem;
+            color: rgb(21, 150, 9);
+            font-size: .2rem;
+        }
+        &__noicon {
+            margin-top: .1rem;
+            position: relative;
+            color: rgb(99, 148, 144);
+            font-size: .2rem;
+        }
+        &__img {
+            width: 0.46rem;
+            height: 0.46rem;
+            margin: auto 0.16rem;
+        }
+        &__particulars {
+            overflow: hidden;
+            flex: 1;
+            &__title {
+                margin: 0;
+                line-height: 0.2rem;
+                font-size: 0.14rem;
+                color: #333;
+                @include ellipsis;
+            }
+            &__sales {
+                margin: 0.06rem 0;
+                font-size: 0.12rem;
+                line-height: 0.16rem;
+                color: #333;
+            }
+            &__price {
+                margin: 0;
+                line-height: 0.2rem;
+                font-size: 0.14rem;
+                color: #e93b3b;
+            }
+            &__yen {
+                font-size: 0.12rem;
+            }
+            &__origin {
+                margin-left: 0.06rem;
+                line-height: 0.2rem;
+                font-size: 0.12rem;
+                color: #999;
+                text-decoration: line-through;
+            }
+        }
+        &__number {
+            // position: flex;
+            margin: auto .1rem ;
+            &__reduce,
+            &__increase {
+                display: inline-block;
+                width: 0.2rem;
+                height: 0.2rem;
+                line-height: 0.16rem;
+                border-radius: 50%;
+                font-size: 0.2rem;
+                text-align: center;
+            }
+            &__reduce {
+                border: 0.01rem solid #666;
+                margin-right: 0.1rem;
+            }
+            &__increase {
+                background-color: #0091ff;
+                color: #fff;
+                margin-left: 0.1rem;
+            }
+        }
     }
-  }
-  &__btn {
-    width: 0.98rem;
-    background-color: #3fb0f9;
-    text-align: center;
-    color: #fff;
-    font-size: 0.14rem;
-  }
+}
+
+.check {
+    display: flex;
+    height: 0.49rem;
+    line-height: 0.49rem;
+    border-top: 0.01rem solid #f1f1f1;
+    &__icon {
+        position: relative;
+        width: 0.84rem;
+        &__img {
+            display: block;
+            margin: 0.12rem auto;
+            width: 0.28rem;
+            height: 0.26rem;
+        }
+        &__tag {
+            position: absolute;
+            left: 0.46rem;
+            top: 0.06rem;
+            min-width: 0.2rem;
+            height: 0.2rem;
+            line-height: 0.2rem;
+            background-color: #e03535;
+            border-radius: 0.1rem;
+            font-size: 0.12rem;
+            text-align: center;
+            transform: scale(0.6);
+            transform-origin: left center;
+            color: #fff;
+        }
+    }
+    &__info {
+        flex: 1;
+        font-size: 0.12rem;
+        color: #333;
+        &__price {
+            color: #e93b3b;
+            font-size: 0.18rem;
+            line-height: 0.49rem;
+        }
+    }
+    &__btn {
+        width: 0.98rem;
+        color: #fff;
+        font-size: 0.14rem;
+        background-color: #4fb0f9;
+        text-align: center;
+    }
 }
 </style>
